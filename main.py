@@ -20,26 +20,40 @@ except AttributeError:
     def _translate(context, text, disambig):
         return QtGui.QApplication.translate(context, text, disambig)
 
-class Database:
-    def __init__(self, parent=None):
-        self.db = None
+## Ga perlu, karena kita tinggal instantiate class QSqlDatabase yang dah ada, dan tinggal supply parameter2nya.
+## ga setiap butuh sesuatu, kita buat kelas baru.
 
-    def connect(filename):
+# class Database(QtSql.QSqlDatabase):
+#     def __init__(self, filename, parent=None):
+#         QtSql.QSqlDatabase.__init__(parent)
+#         self.db = None
+#         self.filename = filename
+
+
+## Ini jg ga perlu. Cek method read_clicked
+# class Model(QtSql.QSqlTableModel):
+#     def __init__(self, parent=None):
+#         super(Model, self).__init__(parent)
+
+
+class Ui_MainWindow(QtGui.QMainWindow):
+    def __init__(self):
+        QMainWindow.__init__(self)
+        self.db = QtSql.QSqlDatabase() #kalau ini perlu, karena mungkin akan sering dipakai oleh method lain di kelas ini
         self.db = QtSql.QSqlDatabase.addDatabase("QSQLITE")
-        self.db.setDatabaseName(filename)
+        self.model = None #sebenernya ini ga perlu dijadikan variabel object. But its okay
+        self.filename = None
+
+    def connect_database(self):
+        self.db.setDatabaseName(self.filename)
         self.db.open()
         if not self.db.open():
             MessageBox = ctypes.windll.user32.MessageBoxA
             MessageBox(None, 'Bukan File SQLite3 Database', 'Alert', 0)
+        else:
+            MessageBox = ctypes.windll.user32.MessageBoxA
+            MessageBox(None, 'Good. Valid SQLite3 Database', 'Info', 0)
 
-class Model(QtSql.QSqlTableModel):
-    def __init__(self, parent=None):
-        super(Model, self).__init__(parent)
-        self.model = QtSql.QSqlTableModel(self)
-        self.model.setTable("sqlite_master")
-        self.model.select()
-
-class Ui_MainWindow(QtGui.QMainWindow):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName(_fromUtf8("MainWindow"))
         MainWindow.resize(591, 542)
@@ -170,28 +184,19 @@ class Ui_MainWindow(QtGui.QMainWindow):
             self.lineEdit_loc.setText('tes')
 
     def db_clicked(self):
-        filename = QtGui.QFileDialog.getOpenFileName(MainWindow, "Open File", '',
+        self.filename = QtGui.QFileDialog.getOpenFileName(MainWindow, "Open File", '',
         'Database (*.db) \nAll File (*.*)', None, QtGui.QFileDialog.DontUseNativeDialog)
-        self.db_lineEdit.setText(filename)
-
-        #self.db = QtSql.QSqlDatabase.addDatabase("QSQLITE") >>>>saya pernah mencoba menaruh script db disini
-        #self.db.setDatabaseName(filename)
-        #self.db.open()
-        #if not self.db.open():
-         #   MessageBox = ctypes.windll.user32.MessageBoxA
-          #  MessageBox(None, 'Bukan File SQLite3 Database', 'Alert', 0)
+        self.db_lineEdit.setText(self.filename)
+        self.connect_database()
 
     def read_clicked(self):
-        self.db = Database()
-        self.model = Model(self)
-        combo = self.comboBox_tabel
-        combo.setModel(self.model)
-        combo.setModelColumn(self.model.fieldIndex("name"))
-
-        projectView = self.tableView_db
-        projectView.setModel(self.model)
-        projectView.show()
-
+        self.model = QtSql.QSqlTableModel(self, self.db)
+        self.model.setTable("names")
+        self.model.select()
+        self.comboBox_tabel.setModel(self.model)
+        self.comboBox_tabel.setModelColumn(self.model.fieldIndex("name"))
+        self.tableView_db.setModel(self.model)
+        self.tableView_db.show()
 
     def info_clicked(self):
         MessageBox = ctypes.windll.user32.MessageBoxA
